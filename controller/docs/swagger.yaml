@@ -1,0 +1,186 @@
+basePath: /
+definitions:
+  handler.CreateConfigRequest:
+    properties:
+      poll_interval_seconds:
+        minimum: 1
+        type: integer
+      url:
+        type: string
+    required:
+    - poll_interval_seconds
+    - url
+    type: object
+  handler.RegisterAgentResponse:
+    properties:
+      agent_id:
+        type: string
+      poll_interval_seconds:
+        type: integer
+      poll_url:
+        type: string
+    type: object
+  httpresponse.ErrorDetail:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  httpresponse.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/httpresponse.ErrorDetail'
+    type: object
+  httpresponse.ValidationErrorDetail:
+    properties:
+      code:
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/httpresponse.ValidationFieldError'
+        type: array
+      message:
+        type: string
+    type: object
+  httpresponse.ValidationErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/httpresponse.ValidationErrorDetail'
+    type: object
+  httpresponse.ValidationFieldError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  model.Config:
+    properties:
+      poll_interval_seconds:
+        type: integer
+      url:
+        type: string
+      version:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: API for agent registration and configuration polling
+  title: Controller API
+  version: "1.0"
+paths:
+  /config:
+    get:
+      description: Returns latest configuration with ETag support
+      parameters:
+      - description: API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: ETag value
+        in: header
+        name: If-None-Match
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Config'
+        "304":
+          description: Not Modified
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get latest config
+      tags:
+      - config
+    post:
+      consumes:
+      - application/json
+      description: Create a new configuration version
+      parameters:
+      - description: API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: config payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Config'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpresponse.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create config
+      tags:
+      - config
+  /register:
+    post:
+      description: Register a new agent and return polling info
+      parameters:
+      - description: API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RegisterAgentResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Register agent
+      tags:
+      - agent
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"

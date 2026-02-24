@@ -1,0 +1,63 @@
+package main
+
+import (
+	_ "controller/docs"
+	"controller/internal/config"
+	"controller/internal/db"
+	"controller/internal/handler"
+	"controller/internal/middleware"
+	sqliteRepo "controller/internal/repository/sqlite"
+	"controller/internal/service"
+	"log"
+
+	"github.com/gin-gonic/gin"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+)
+
+// @title Controller API
+// @version 1.0
+// @description API for agent registration and configuration polling
+// @BasePath /
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-API-Key
+func main() {
+
+	cfg := config.Load()
+	gin.SetMode(cfg.GinMode)
+
+	database, _ := db.New(cfg.DBPath)
+
+	configRepo := sqliteRepo.NewConfigRepository(database)
+	agentRepo := sqliteRepo.NewAgentRepository(database)
+
+	configService := service.NewConfigService(configRepo)
+	agentService := service.NewAgentService(agentRepo)
+
+	h := handler.New(cfg, configService, agentService)
+
+	r := gin.New()
+	if err := r.SetTrustedProxies(nil); err != nil {
+		panic(err)
+	}
+
+	r.Use(middleware.RequestLogger())
+	r.Use(gin.Recovery())
+	r.Use(middleware.CORSMiddleware())
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	agent := r.Group("/", middleware.APIKeyAuth(cfg.AgentAPIKey))
+	agent.POST("/register", h.RegisterAgent)
+	agent.GET("/config", h.GetConfig)
+
+	admin := r.Group("/", middleware.APIKeyAuth(cfg.AdminAPIKey))
+	admin.POST("/config", h.CreateConfig)
+
+	addr := ":" + cfg.Port
+	if err := r.Run(addr); err != nil {
+		log.Fatal(err)
+	}
+}
