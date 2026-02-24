@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Go
+**/bin/
+**/*.test
+**/*.out
+coverage.out
+
+# Env and local secrets
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Local databases and runtime files
+**/*.db
+**/*.db-journal
+**/data/
+
+# Generated mocks
+controller/internal/mocks/
