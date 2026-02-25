@@ -40,6 +40,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "agent ID",
+                        "name": "X-Agent-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "ETag value",
                         "name": "If-None-Match",
                         "in": "header"
@@ -54,6 +61,12 @@ const docTemplate = `{
                     },
                     "304": {
                         "description": "Not Modified"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -160,6 +173,12 @@ const docTemplate = `{
                         "name": "X-API-Key",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "existing agent ID for UUID reuse",
+                        "name": "X-Agent-ID",
+                        "in": "header"
                     }
                 ],
                 "responses": {

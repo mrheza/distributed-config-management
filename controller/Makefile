@@ -1,4 +1,5 @@
 PKGS := $(shell go run ./scripts/pkgfilter -sep=space)
+DC := docker compose
 
 mocks:
 	go run scripts/clean.go
@@ -16,4 +17,10 @@ test:
 
 coverage:
 	go test $(PKGS) -cover -count=1
+
+docker:
+	$(DC) up --build -d
+
+docker-down:
+	$(DC) down
 	

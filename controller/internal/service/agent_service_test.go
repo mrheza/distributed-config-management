@@ -23,7 +23,7 @@ func TestAgentService_Register_Success(t *testing.T) {
 		Once()
 
 	service := NewAgentService(mockRepo)
-	id, err := service.Register()
+	id, err := service.Register("")
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id)
@@ -50,12 +50,53 @@ func TestAgentService_Register_Error(t *testing.T) {
 		Once()
 
 	service := NewAgentService(mockRepo)
-	id, err := service.Register()
+	id, err := service.Register("")
 
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 
 	assert.NotEmpty(t, id)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestAgentService_Register_ReuseExistingID(t *testing.T) {
+
+	mockRepo := new(mocks.AgentRepository)
+	existingID := uuid.NewString()
+
+	mockRepo.
+		On("Save", existingID).
+		Return(nil).
+		Once()
+
+	service := NewAgentService(mockRepo)
+	id, err := service.Register(existingID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, existingID, id)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestAgentService_Register_InvalidExistingID_GeneratesNew(t *testing.T) {
+
+	mockRepo := new(mocks.AgentRepository)
+
+	mockRepo.
+		On("Save", mock.MatchedBy(func(id string) bool {
+			_, err := uuid.Parse(id)
+			return err == nil
+		})).
+		Return(nil).
+		Once()
+
+	service := NewAgentService(mockRepo)
+	id, err := service.Register("invalid-id")
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, id)
+	assert.NotEqual(t, "invalid-id", id)
 
 	mockRepo.AssertExpectations(t)
 }

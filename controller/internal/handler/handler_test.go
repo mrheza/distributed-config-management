@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +41,7 @@ func TestRegisterAgent_Success_WithConfig(t *testing.T) {
 	expectedAgentID := "agent-123"
 
 	mockAgent.
-		On("Register").
+		On("Register", "").
 		Return(expectedAgentID, nil).
 		Once()
 
@@ -88,7 +89,7 @@ func TestRegisterAgent_Fallback_DefaultInterval(t *testing.T) {
 	}
 
 	mockAgent.
-		On("Register").
+		On("Register", "").
 		Return("agent-123", nil).
 		Once()
 
@@ -129,7 +130,7 @@ func TestRegisterAgent_ConfigIntervalZero_Fallback(t *testing.T) {
 	}
 
 	mockAgent.
-		On("Register").
+		On("Register", "").
 		Return("agent-123", nil).
 		Once()
 
@@ -173,7 +174,7 @@ func TestRegisterAgent_AgentServiceError(t *testing.T) {
 	}
 
 	mockAgent.
-		On("Register").
+		On("Register", "").
 		Return("", errors.New("register failed")).
 		Once()
 
@@ -189,6 +190,46 @@ func TestRegisterAgent_AgentServiceError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.Code)
 
 	mockAgent.AssertExpectations(t)
+}
+
+func TestRegisterAgent_Success_WithExistingAgentIDHeader(t *testing.T) {
+
+	mockAgent := new(serviceMocks.AgentService)
+	mockConfig := new(serviceMocks.ConfigService)
+
+	cfg := &config.Config{
+		PollURL: "/config",
+	}
+
+	existingID := "f73f1430-ad82-44a5-8cd2-b2c8ffbf2f57"
+
+	mockAgent.
+		On("Register", existingID).
+		Return(existingID, nil).
+		Once()
+
+	mockConfig.
+		On("GetLatest").
+		Return(nil, errors.New("not found")).
+		Once()
+
+	handler := New(cfg, mockConfig, mockAgent)
+	router := setupRouter(handler)
+
+	req := httptest.NewRequest(http.MethodPost, "/register", nil)
+	req.Header.Set("X-Agent-ID", existingID)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusOK, resp.Code)
+
+	var body map[string]interface{}
+	err := json.Unmarshal(resp.Body.Bytes(), &body)
+	assert.NoError(t, err)
+	assert.Equal(t, existingID, body["agent_id"])
+
+	mockAgent.AssertExpectations(t)
+	mockConfig.AssertExpectations(t)
 }
 
 //
@@ -214,6 +255,7 @@ func TestGetConfig_Success(t *testing.T) {
 	router := setupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
 	resp := httptest.NewRecorder()
 
 	router.ServeHTTP(resp, req)
@@ -251,6 +293,7 @@ func TestGetConfig_NotModified_ETag(t *testing.T) {
 	router := setupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
 	req.Header.Set("If-None-Match", `"2"`)
 
 	resp := httptest.NewRecorder()
@@ -276,6 +319,7 @@ func TestGetConfig_Error(t *testing.T) {
 	router := setupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
 	resp := httptest.NewRecorder()
 
 	router.ServeHTTP(resp, req)
@@ -299,6 +343,7 @@ func TestGetConfig_NotFound(t *testing.T) {
 	router := setupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
 	resp := httptest.NewRecorder()
 
 	router.ServeHTTP(resp, req)
@@ -312,6 +357,31 @@ func TestGetConfig_NotFound(t *testing.T) {
 	errorObj := body["error"].(map[string]interface{})
 	assert.Equal(t, "NOT_FOUND", errorObj["code"])
 	assert.Equal(t, "config not found", errorObj["message"])
+
+	mockConfigService.AssertExpectations(t)
+}
+
+func TestGetConfig_InvalidAgentIDHeader(t *testing.T) {
+
+	mockConfigService := new(serviceMocks.ConfigService)
+	handler := New(nil, mockConfigService, nil)
+	router := setupRouter(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", "invalid-agent-id")
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+
+	var body map[string]interface{}
+	err := json.Unmarshal(resp.Body.Bytes(), &body)
+	assert.NoError(t, err)
+
+	errorObj := body["error"].(map[string]interface{})
+	assert.Equal(t, "VALIDATION_ERROR", errorObj["code"])
+	assert.Equal(t, "invalid X-Agent-ID header", errorObj["message"])
 
 	mockConfigService.AssertExpectations(t)
 }

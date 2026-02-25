@@ -13,6 +13,7 @@ import (
 type requestLog struct {
 	Timestamp string `json:"timestamp"`
 	RequestID string `json:"request_id"`
+	AgentID   string `json:"agent_id,omitempty"`
 	Method    string `json:"method"`
 	Path      string `json:"path"`
 	Query     string `json:"query,omitempty"`
@@ -38,6 +39,7 @@ func RequestLogger() gin.HandlerFunc {
 		entry := requestLog{
 			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 			RequestID: requestID,
+			AgentID:   c.GetHeader("X-Agent-ID"),
 			Method:    c.Request.Method,
 			Path:      c.Request.URL.Path,
 			Query:     c.Request.URL.RawQuery,

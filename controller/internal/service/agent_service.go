@@ -7,7 +7,7 @@ import (
 )
 
 type AgentService interface {
-	Register() (string, error)
+	Register(existingID string) (string, error)
 }
 
 type agentService struct{ repo repository.AgentRepository }
@@ -16,7 +16,10 @@ func NewAgentService(r repository.AgentRepository) AgentService {
 	return &agentService{r}
 }
 
-func (s *agentService) Register() (string, error) {
-	id := uuid.New().String()
+func (s *agentService) Register(existingID string) (string, error) {
+	id := existingID
+	if _, err := uuid.Parse(existingID); existingID == "" || err != nil {
+		id = uuid.New().String()
+	}
 	return id, s.repo.Save(id)
 }

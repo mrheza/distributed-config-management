@@ -79,6 +79,11 @@ paths:
         name: X-API-Key
         required: true
         type: string
+      - description: agent ID
+        in: header
+        name: X-Agent-ID
+        required: true
+        type: string
       - description: ETag value
         in: header
         name: If-None-Match
@@ -92,6 +97,10 @@ paths:
             $ref: '#/definitions/model.Config'
         "304":
           description: Not Modified
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
@@ -157,6 +166,10 @@ paths:
         in: header
         name: X-API-Key
         required: true
+        type: string
+      - description: existing agent ID for UUID reuse
+        in: header
+        name: X-Agent-ID
         type: string
       produces:
       - application/json
