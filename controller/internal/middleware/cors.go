@@ -1,19 +1,11 @@
 package middleware
 
-import "github.com/gin-gonic/gin"
+import (
+	sharedmiddleware "github.com/mrheza/distributed-config-management/shared/middleware"
+
+	"github.com/gin-gonic/gin"
+)
 
 func CORSMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "*")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
-            return
-        }
-
-        c.Next()
-    }
+	return sharedmiddleware.CORSMiddleware()
 }

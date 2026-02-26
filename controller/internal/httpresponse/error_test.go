@@ -106,7 +106,8 @@ func TestValidationError_WithValidatorError(t *testing.T) {
 	assert.Equal(t, "VALIDATION_ERROR", resp.Error.Code)
 	assert.Len(t, resp.Error.Fields, 1)
 	assert.Equal(t, "url", resp.Error.Fields[0].Field)
-	assert.Equal(t, "is required", resp.Error.Fields[0].Message)
+	assert.Equal(t, "required", resp.Error.Fields[0].Code)
+	assert.Equal(t, "failed \"required\" validation", resp.Error.Fields[0].Message)
 }
 
 func TestValidationError_WithNonValidatorError(t *testing.T) {
@@ -122,29 +123,4 @@ func TestValidationError_WithNonValidatorError(t *testing.T) {
 
 	assert.Equal(t, "VALIDATION_ERROR", resp.Error.Code)
 	assert.Nil(t, resp.Error.Fields)
-}
-
-func TestToSnakeCase(t *testing.T) {
-
-	result := toSnakeCase("PollIntervalSeconds")
-
-	assert.Equal(t, "poll_interval_seconds", result)
-}
-
-func TestGetJSONFieldName_WithJSONTag(t *testing.T) {
-
-	req := TestStruct{}
-
-	result := getJSONFieldName(req, "URL")
-
-	assert.Equal(t, "url", result)
-}
-
-func TestGetJSONFieldName_Fallback(t *testing.T) {
-
-	req := struct{}{}
-
-	result := getJSONFieldName(req, "UnknownField")
-
-	assert.Equal(t, "unknown_field", result)
 }

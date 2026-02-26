@@ -1,9 +1,11 @@
-FROM golang:1.24-alpine
+FROM golang:1.22-alpine
 
 WORKDIR /app
 
-COPY . .
+COPY shared ./shared
+COPY controller ./controller
 
+WORKDIR /app/controller
 RUN go mod tidy
 
 RUN go build -o controller ./cmd/main.go

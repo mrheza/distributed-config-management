@@ -1,20 +1,15 @@
-version: '3'
-
 services:
-
   controller:
-
-    build: .
-
+    build:
+      context: ..
+      dockerfile: controller/Dockerfile
     ports:
       - "8080:8080"
-
     environment:
       ADMIN_API_KEY: admin-secret
       AGENT_API_KEY: agent-secret
       GIN_MODE: release
       DB_PATH: data/controller.db
       PORT: 8080
-
     volumes:
-      - ./data:/app/data
+      - ./data:/app/controller/data

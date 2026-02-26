@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"controller/internal/model"
-	"controller/internal/repository"
 	"database/sql"
 	"errors"
 )
@@ -34,7 +33,7 @@ func (r *ConfigRepository) GetLatest() (*model.Config, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, repository.ErrConfigNotFound
+			return nil, sql.ErrNoRows
 		}
 		return nil, err
 	}

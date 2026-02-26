@@ -6,6 +6,7 @@ import (
 	"controller/internal/service"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -98,7 +99,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
 
 	etag := fmt.Sprintf(`"%d"`, cfg.Version)
 	c.Header("ETag", etag)
-	if c.GetHeader("If-None-Match") == etag {
+	if ifNoneMatchContains(c.GetHeader("If-None-Match"), etag) {
 		c.Status(http.StatusNotModified)
 		return
 	}
@@ -141,4 +142,29 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, cfg)
+}
+
+func ifNoneMatchContains(headerValue, currentETag string) bool {
+	if headerValue == "" || currentETag == "" {
+		return false
+	}
+
+	current := normalizeETag(currentETag)
+	for _, candidate := range strings.Split(headerValue, ",") {
+		if normalizeETag(candidate) == current {
+			return true
+		}
+	}
+
+	return false
+}
+
+func normalizeETag(v string) string {
+	v = strings.TrimSpace(v)
+	if strings.HasPrefix(v, "W/") || strings.HasPrefix(v, "w/") {
+		v = strings.TrimSpace(v[2:])
+	}
+
+	v = strings.Trim(v, `"`)
+	return v
 }

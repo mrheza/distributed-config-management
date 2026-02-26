@@ -50,9 +50,13 @@ definitions:
     type: object
   httpresponse.ValidationFieldError:
     properties:
+      code:
+        type: string
       field:
         type: string
       message:
+        type: string
+      param:
         type: string
     type: object
   model.Config:

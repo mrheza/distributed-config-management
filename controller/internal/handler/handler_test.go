@@ -5,7 +5,7 @@ import (
 	"controller/internal/config"
 	serviceMocks "controller/internal/mocks/service"
 	"controller/internal/model"
-	"controller/internal/repository"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -305,6 +305,81 @@ func TestGetConfig_NotModified_ETag(t *testing.T) {
 	mockConfigService.AssertExpectations(t)
 }
 
+func TestGetConfig_NotModified_ETag_Unquoted(t *testing.T) {
+	mockConfigService := new(serviceMocks.ConfigService)
+
+	expected := &model.Config{
+		Version: 2,
+		URL:     "https://example.com",
+	}
+
+	mockConfigService.
+		On("GetLatest").
+		Return(expected, nil).
+		Once()
+
+	handler := New(nil, mockConfigService, nil)
+	router := setupRouter(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
+	req.Header.Set("If-None-Match", "2")
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusNotModified, resp.Code)
+}
+
+func TestGetConfig_NotModified_ETag_Weak(t *testing.T) {
+	mockConfigService := new(serviceMocks.ConfigService)
+
+	expected := &model.Config{
+		Version: 2,
+		URL:     "https://example.com",
+	}
+
+	mockConfigService.
+		On("GetLatest").
+		Return(expected, nil).
+		Once()
+
+	handler := New(nil, mockConfigService, nil)
+	router := setupRouter(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
+	req.Header.Set("If-None-Match", `W/"2"`)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusNotModified, resp.Code)
+}
+
+func TestGetConfig_NotModified_ETag_List(t *testing.T) {
+	mockConfigService := new(serviceMocks.ConfigService)
+
+	expected := &model.Config{
+		Version: 3,
+		URL:     "https://example.com",
+	}
+
+	mockConfigService.
+		On("GetLatest").
+		Return(expected, nil).
+		Once()
+
+	handler := New(nil, mockConfigService, nil)
+	router := setupRouter(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req.Header.Set("X-Agent-ID", uuid.NewString())
+	req.Header.Set("If-None-Match", `"1", W/"3"`)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusNotModified, resp.Code)
+}
+
 func TestGetConfig_Error(t *testing.T) {
 
 	mockConfigService := new(serviceMocks.ConfigService)
@@ -335,7 +410,7 @@ func TestGetConfig_NotFound(t *testing.T) {
 
 	mockConfigService.
 		On("GetLatest").
-		Return(nil, repository.ErrConfigNotFound).
+		Return(nil, sql.ErrNoRows).
 		Once()
 
 	handler := New(nil, mockConfigService, nil)
@@ -356,7 +431,7 @@ func TestGetConfig_NotFound(t *testing.T) {
 
 	errorObj := body["error"].(map[string]interface{})
 	assert.Equal(t, "NOT_FOUND", errorObj["code"])
-	assert.Equal(t, "config not found", errorObj["message"])
+	assert.Equal(t, "resource not found", errorObj["message"])
 
 	mockConfigService.AssertExpectations(t)
 }
@@ -483,14 +558,19 @@ func TestCreateConfig_ValidationError_MissingFields(t *testing.T) {
 	fields := errorObj["fields"].([]interface{})
 	assert.Len(t, fields, 2)
 
-	found := map[string]string{}
+	found := map[string]map[string]string{}
 	for _, f := range fields {
 		fieldObj := f.(map[string]interface{})
-		found[fieldObj["field"].(string)] = fieldObj["message"].(string)
+		found[fieldObj["field"].(string)] = map[string]string{
+			"code":    fieldObj["code"].(string),
+			"message": fieldObj["message"].(string),
+		}
 	}
 
-	assert.Equal(t, "is required", found["url"])
-	assert.Equal(t, "is required", found["poll_interval_seconds"])
+	assert.Equal(t, "required", found["url"]["code"])
+	assert.Equal(t, "failed \"required\" validation", found["url"]["message"])
+	assert.Equal(t, "required", found["poll_interval_seconds"]["code"])
+	assert.Equal(t, "failed \"required\" validation", found["poll_interval_seconds"]["message"])
 }
 
 func TestCreateConfig_ValidationError_InvalidURL(t *testing.T) {
@@ -534,7 +614,8 @@ func TestCreateConfig_ValidationError_InvalidURL(t *testing.T) {
 	assert.Len(t, fields, 1)
 	fieldObj := fields[0].(map[string]interface{})
 	assert.Equal(t, "url", fieldObj["field"])
-	assert.Equal(t, "must be a valid URL", fieldObj["message"])
+	assert.Equal(t, "url", fieldObj["code"])
+	assert.Equal(t, "failed \"url\" validation", fieldObj["message"])
 }
 
 func TestCreateConfig_ValidationError_InvalidType(t *testing.T) {
@@ -572,6 +653,8 @@ func TestCreateConfig_ValidationError_InvalidType(t *testing.T) {
 	assert.Len(t, fields, 1)
 	fieldObj := fields[0].(map[string]interface{})
 	assert.Equal(t, "url", fieldObj["field"])
+	assert.Equal(t, "type_mismatch", fieldObj["code"])
+	assert.Equal(t, "string", fieldObj["param"])
 	assert.Equal(t, "must be string", fieldObj["message"])
 }
 

@@ -282,10 +282,16 @@ const docTemplate = `{
         "httpresponse.ValidationFieldError": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string"
+                },
                 "field": {
                     "type": "string"
                 },
                 "message": {
+                    "type": "string"
+                },
+                "param": {
                     "type": "string"
                 }
             }

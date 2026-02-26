@@ -1,7 +1,6 @@
 package sqlite
 
 import (
-	"controller/internal/repository"
 	"database/sql"
 	"errors"
 	"regexp"
@@ -65,5 +64,5 @@ func TestConfigRepository_GetLatest_EmptyTable(t *testing.T) {
 
 	assert.Nil(t, latest)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, repository.ErrConfigNotFound))
+	assert.True(t, errors.Is(err, sql.ErrNoRows))
 }
