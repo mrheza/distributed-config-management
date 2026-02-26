@@ -22,3 +22,6 @@ coverage.out
 
 # Generated mocks
 controller/internal/mocks/
+agent/internal/mocks/
+worker/internal/mocks/
+

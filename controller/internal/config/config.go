@@ -11,7 +11,7 @@ type Config struct {
 	AgentAPIKey string
 	PollURL     string
 	GinMode     string
-	DBPath      string
+	DatabaseURL string
 	Port        string
 }
 
@@ -19,18 +19,11 @@ func Load() *Config {
 	_ = godotenv.Load()
 
 	return &Config{
-		AdminAPIKey: getEnv("ADMIN_API_KEY", "admin-secret"),
-		AgentAPIKey: getEnv("AGENT_API_KEY", "agent-secret"),
-		PollURL:     getEnv("POLL_URL", "/config"),
-		GinMode:     getEnv("GIN_MODE", "debug"),
-		DBPath:      getEnv("DB_PATH", "controller.db"),
-		Port:        getEnv("PORT", "8080"),
+		AdminAPIKey: os.Getenv("ADMIN_API_KEY"),
+		AgentAPIKey: os.Getenv("AGENT_API_KEY"),
+		PollURL:     os.Getenv("POLL_URL"),
+		GinMode:     os.Getenv("GIN_MODE"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Port:        os.Getenv("PORT"),
 	}
-}
-
-func getEnv(k, d string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return d
 }

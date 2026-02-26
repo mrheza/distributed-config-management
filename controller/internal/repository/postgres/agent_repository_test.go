@@ -1,4 +1,4 @@
-package sqlite
+package postgres
 
 import (
 	"errors"
@@ -15,8 +15,8 @@ func TestAgentRepository_Save_Success(t *testing.T) {
 	repo := NewAgentRepository(database)
 
 	mock.ExpectExec(regexp.QuoteMeta(`
-		INSERT OR IGNORE INTO agents (id)
-		VALUES (?)
+		INSERT INTO agents (id)
+		VALUES ($1) ON CONFLICT (id) DO NOTHING
 	`)).
 		WithArgs("agent-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -31,8 +31,8 @@ func TestAgentRepository_Save_Error(t *testing.T) {
 
 	expectedErr := errors.New("insert failed")
 	mock.ExpectExec(regexp.QuoteMeta(`
-		INSERT OR IGNORE INTO agents (id)
-		VALUES (?)
+		INSERT INTO agents (id)
+		VALUES ($1) ON CONFLICT (id) DO NOTHING
 	`)).
 		WithArgs("agent-1").
 		WillReturnError(expectedErr)

@@ -6,7 +6,7 @@ import (
 	"controller/internal/db"
 	"controller/internal/handler"
 	"controller/internal/middleware"
-	sqliteRepo "controller/internal/repository/sqlite"
+	postgresRepo "controller/internal/repository/postgres"
 	"controller/internal/service"
 	"log"
 
@@ -28,10 +28,13 @@ func main() {
 	cfg := config.Load()
 	gin.SetMode(cfg.GinMode)
 
-	database, _ := db.New(cfg.DBPath)
+	database, err := db.New(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	configRepo := sqliteRepo.NewConfigRepository(database)
-	agentRepo := sqliteRepo.NewAgentRepository(database)
+	configRepo := postgresRepo.NewConfigRepository(database)
+	agentRepo := postgresRepo.NewAgentRepository(database)
 
 	configService := service.NewConfigService(configRepo)
 	agentService := service.NewAgentService(agentRepo)

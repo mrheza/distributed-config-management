@@ -1,0 +1,24 @@
+name: Deploy Worker on Tag
+
+on:
+  push:
+    tags:
+      - "worker/v*.*.*"
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: true
+
+jobs:
+  deploy-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook (worker)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "Missing secret: RENDER_DEPLOY_HOOK_WORKER"
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"

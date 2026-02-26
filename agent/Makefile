@@ -1,5 +1,5 @@
 PKGS := $(shell go run ./scripts/pkgfilter -sep=space)
-DC := docker compose -f ../docker-compose.agent-worker.yml
+DC := docker compose -p agent-worker --env-file .env --env-file ../worker/.env -f ../docker-compose.agent-worker.yml
 
 mocks:
 	go run scripts/clean.go
@@ -24,4 +24,3 @@ docker:
 
 docker-down:
 	$(DC) down
-

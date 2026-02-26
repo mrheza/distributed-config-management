@@ -1,5 +1,5 @@
 PKGS := $(shell go run ./scripts/pkgfilter -sep=space)
-DC := docker compose
+DC := docker compose -p controller --env-file .env -f docker-compose.yml
 
 mocks:
 	go run scripts/clean.go

@@ -1,0 +1,41 @@
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: worker
+    environment:
+      REQUEST_TIMEOUT_SECONDS: ${WORKER_REQUEST_TIMEOUT_SECONDS:-10}
+      AGENT_API_KEY: ${WORKER_API_KEY}
+      GIN_MODE: ${WORKER_GIN_MODE:-release}
+      PORT: 8082
+    ports:
+      - "${WORKER_PORT:-8082}:8082"
+
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    container_name: agent
+    depends_on:
+      worker:
+        condition: service_started
+    environment:
+      CONTROLLER_BASE_URL: ${CONTROLLER_BASE_URL_DOCKER:-http://host.docker.internal:8080}
+      CONTROLLER_API_KEY: ${CONTROLLER_API_KEY}
+      WORKER_BASE_URL: ${WORKER_BASE_URL_DOCKER:-http://worker:8082}
+      WORKER_API_KEY: ${WORKER_API_KEY}
+      POLL_URL: ${POLL_URL:-/config}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-30}
+      STATE_PATH: /app/data/agent_state.json
+      MAX_BACKOFF_SECONDS: ${MAX_BACKOFF_SECONDS:-60}
+      BACKOFF_JITTER_PERCENT: ${BACKOFF_JITTER_PERCENT:-20}
+      REQUEST_TIMEOUT_SECONDS: ${AGENT_REQUEST_TIMEOUT_SECONDS:-10}
+      GIN_MODE: ${AGENT_GIN_MODE:-release}
+      PORT: 8081
+    ports:
+      - "${AGENT_PORT:-8081}:8081"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./agent/data:/app/data

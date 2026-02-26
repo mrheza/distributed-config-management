@@ -1,0 +1,24 @@
+name: Deploy Controller on Tag
+
+on:
+  push:
+    tags:
+      - "controller/v*.*.*"
+
+concurrency:
+  group: deploy-controller
+  cancel-in-progress: true
+
+jobs:
+  deploy-controller:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook (controller)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_CONTROLLER }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "Missing secret: RENDER_DEPLOY_HOOK_CONTROLLER"
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"

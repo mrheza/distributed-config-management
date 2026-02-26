@@ -1,0 +1,24 @@
+name: Deploy Agent on Tag
+
+on:
+  push:
+    tags:
+      - "agent/v*.*.*"
+
+concurrency:
+  group: deploy-agent
+  cancel-in-progress: true
+
+jobs:
+  deploy-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook (agent)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_AGENT }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "Missing secret: RENDER_DEPLOY_HOOK_AGENT"
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"

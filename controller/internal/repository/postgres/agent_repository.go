@@ -1,4 +1,4 @@
-package sqlite
+package postgres
 
 import "database/sql"
 
@@ -10,8 +10,8 @@ func NewAgentRepository(db *sql.DB) *AgentRepository {
 
 func (r *AgentRepository) Save(id string) error {
 	_, err := r.db.Exec(`
-		INSERT OR IGNORE INTO agents (id)
-		VALUES (?)
+		INSERT INTO agents (id)
+		VALUES ($1) ON CONFLICT (id) DO NOTHING
 	`, id)
 
 	return err

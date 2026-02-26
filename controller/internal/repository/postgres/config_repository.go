@@ -1,4 +1,4 @@
-package sqlite
+package postgres
 
 import (
 	"controller/internal/model"
@@ -45,7 +45,7 @@ func (r *ConfigRepository) Create(url string, pollIntervalSeconds int) error {
 
 	_, err := r.db.Exec(`
 		INSERT INTO configurations (url, poll_interval_seconds)
-		VALUES (?, ?)
+		VALUES ($1, $2)
 	`,
 		url,
 		pollIntervalSeconds,

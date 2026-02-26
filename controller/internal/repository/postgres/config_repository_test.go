@@ -1,4 +1,4 @@
-package sqlite
+package postgres
 
 import (
 	"database/sql"
@@ -17,7 +17,7 @@ func TestConfigRepository_Create_Success(t *testing.T) {
 
 	mock.ExpectExec(regexp.QuoteMeta(`
 		INSERT INTO configurations (url, poll_interval_seconds)
-		VALUES (?, ?)
+		VALUES ($1, $2)
 	`)).
 		WithArgs("https://example.com/v1", 30).
 		WillReturnResult(sqlmock.NewResult(1, 1))
