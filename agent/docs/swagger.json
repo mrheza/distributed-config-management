@@ -1,0 +1,56 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Agent service for controller polling and worker sync",
+        "title": "Agent API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/state": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Agent state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.State"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.State": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "config_url": {
+                    "type": "string"
+                },
+                "etag": {
+                    "type": "string"
+                },
+                "last_config_version": {
+                    "type": "integer"
+                },
+                "poll_interval_seconds": {
+                    "type": "integer"
+                },
+                "poll_url": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

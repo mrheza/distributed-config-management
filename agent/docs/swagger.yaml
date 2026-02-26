@@ -1,0 +1,36 @@
+basePath: /
+definitions:
+  model.State:
+    properties:
+      agent_id:
+        type: string
+      config_url:
+        type: string
+      etag:
+        type: string
+      last_config_version:
+        type: integer
+      poll_interval_seconds:
+        type: integer
+      poll_url:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Agent service for controller polling and worker sync
+  title: Agent API
+  version: "1.0"
+paths:
+  /state:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.State'
+      summary: Agent state
+      tags:
+      - system
+swagger: "2.0"
