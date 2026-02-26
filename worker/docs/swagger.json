@@ -1,0 +1,193 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Worker service for config apply and hit execution",
+        "title": "Worker API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/config": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Called by Agent to update worker configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "worker"
+                ],
+                "summary": "Apply worker config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Worker config",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Config"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ConfigUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/hit": {
+            "get": {
+                "description": "Executes HTTP GET to configured URL and returns raw response body",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "worker"
+                ],
+                "summary": "Execute hit task",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/state": {
+            "get": {
+                "description": "Returns current configuration used by worker",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "worker"
+                ],
+                "summary": "Worker state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Config"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpresponse.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "httpresponse.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpresponse.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/httpresponse.ErrorDetail"
+                }
+            }
+        },
+        "model.Config": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "poll_interval_seconds": {
+                    "type": "integer"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ConfigUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        }
+    }
+}

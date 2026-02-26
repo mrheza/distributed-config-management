@@ -1,0 +1,125 @@
+basePath: /
+definitions:
+  httpresponse.ErrorDetail:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  httpresponse.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/httpresponse.ErrorDetail'
+    type: object
+  model.Config:
+    properties:
+      poll_interval_seconds:
+        type: integer
+      url:
+        type: string
+      version:
+        type: integer
+    required:
+    - url
+    type: object
+  model.ConfigUpdateResponse:
+    properties:
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Worker service for config apply and hit execution
+  title: Worker API
+  version: "1.0"
+paths:
+  /config:
+    post:
+      consumes:
+      - application/json
+      description: Called by Agent to update worker configuration
+      parameters:
+      - description: API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Worker config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.Config'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ConfigUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Apply worker config
+      tags:
+      - worker
+  /hit:
+    get:
+      description: Executes HTTP GET to configured URL and returns raw response body
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+      summary: Execute hit task
+      tags:
+      - worker
+  /state:
+    get:
+      description: Returns current configuration used by worker
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Config'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpresponse.ErrorResponse'
+      summary: Worker state
+      tags:
+      - worker
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"
