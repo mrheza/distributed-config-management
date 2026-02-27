@@ -40,6 +40,20 @@ Windows (Chocolatey):
 choco install make
 ```
 
+## Go Workspace (`go.work`)
+This repository uses multiple Go modules (`controller`, `agent`, `worker`, `shared`).
+
+If you develop from repository root, initialize a Go workspace:
+
+```bash
+go work init ./controller ./agent ./worker ./shared
+go work sync
+```
+
+If `go.work` already exists, you can skip this step.
+
+If you only work inside one service folder, you can run commands directly in that folder without workspace setup.
+
 ## Quick Start (Local)
 ### 1) Prepare env files
 Create:
