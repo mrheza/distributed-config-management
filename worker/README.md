@@ -1,55 +1,60 @@
 # Worker Service
 
-Worker receives config from agent and executes `/hit` based on latest config.
+## Overview
+Worker receives config from agent and executes `/hit` using the latest applied URL.
+
+Public URL: `https://worker-4ldb.onrender.com`
 
 ## Endpoints
-
 - `POST /config` (agent auth required)
 - `GET /hit`
 - `GET /state`
 - `GET /swagger/*any`
 
 ## Authentication
-
 Header: `X-API-Key`
 - Required for `POST /config`
 - Key is configured by `AGENT_API_KEY`
 
 ## Environment Variables
-
-| Variable | Default | Description |
+| Variable | Required | Description |
 |---|---|---|
-| `REQUEST_TIMEOUT_SECONDS` | `10` | Timeout when worker fetches configured URL |
-| `AGENT_API_KEY` | `worker-secret` | API key for `POST /config` |
-| `GIN_MODE` | `release` | Gin mode |
-| `PORT` | `8082` | HTTP port |
+| `REQUEST_TIMEOUT_SECONDS` | Yes | Timeout when worker calls configured URL |
+| `AGENT_API_KEY` | Yes | API key for `POST /config` |
+| `GIN_MODE` | Yes | Gin mode (`debug`/`release`) |
+| `PORT` | Yes | HTTP port |
 
-## Local Run
-
+## Local Development
+### Run
 ```bash
 cd worker
 make run
 ```
 
-## Test
+### Generate Mocks
+```bash
+cd worker
+make mocks
+```
 
+### Test
 ```bash
 cd worker
 make test
 make coverage
 ```
 
-## Swagger
-
+### Generate Swagger
 ```bash
 cd worker
 make swagger
 ```
 
-Swagger route: `http://localhost:8082/swagger/index.html`
+Swagger:
+- Local: `http://localhost:8082/swagger/index.html`
+- Public: `https://worker-4ldb.onrender.com/swagger/index.html`
 
 ## Docker
-
 Worker uses shared compose with agent:
 
 ```bash
@@ -59,3 +64,7 @@ make docker-down
 ```
 
 Compose file: `../docker-compose.agent-worker.yml`
+
+## Notes
+- Config is stored in memory (reapplied by agent after startup if available).
+- Keep key aligned: `AGENT_API_KEY == agent.WORKER_API_KEY`.

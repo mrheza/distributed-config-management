@@ -30,7 +30,11 @@ type CreateConfigRequest struct {
 }
 
 func New(cf *config.Config, cs service.ConfigService, as service.AgentService) *Handler {
-	return &Handler{cf, cs, as}
+	return &Handler{
+		config:        cf,
+		configService: cs,
+		agentService:  as,
+	}
 }
 
 // RegisterAgent godoc

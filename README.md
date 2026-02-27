@@ -1,44 +1,79 @@
 # Distributed Config Management
 
-Monorepo for a distributed configuration system with three services:
-- `controller`: source of truth for global config and agent registration
-- `agent`: polls controller, caches state, and pushes config to worker
-- `worker`: executes `/hit` using latest config received from agent
-
-## Repository Structure
-
-- `controller/`
-- `agent/`
-- `worker/`
-- `shared/` (shared middleware and HTTP response helpers)
-
-## Architecture Flow
-
-1. Agent registers to controller via `POST /register`.
-2. Controller returns `agent_id`, `poll_url`, and `poll_interval_seconds`.
-3. Agent polls controller `GET /config` with ETag.
-4. On config changes, agent forwards config to worker via `POST /config`.
-5. Worker serves `GET /hit` by calling configured URL and proxying response body.
-
-## Architecture Notes
-
-- Controller is the global source of truth for configuration.
-- Agent persists local state (`agent_id`, ETag, last version, cached config URL) in file storage.
-- Worker keeps active config in memory and applies updates from agent.
-- Agent uses exponential backoff + jitter for request failures (`controller` / `worker` targets), while local file errors use fixed retry interval.
-- If controller is unavailable, agent and worker continue using existing cached/applied config.
-- ETag is used to avoid resending unchanged config (`304 Not Modified` path).
+Distributed configuration system in a single monorepo with 3 services:
+- `controller`: source of truth for config + agent registration
+- `agent`: registers to controller, polls config (ETag), forwards updates to worker
+- `worker`: executes `/hit` using the latest config from agent
 
 ## Service Docs
-
 - [controller/README.md](controller/README.md)
 - [agent/README.md](agent/README.md)
 - [worker/README.md](worker/README.md)
 
-## Monorepo Commands
+## Repository Structure
+- `controller/`
+- `agent/`
+- `worker/`
+- `shared/`
 
-From repo root:
+## End-to-End Flow
+1. Agent calls `POST /register` to controller.
+2. Controller returns `agent_id`, `poll_url`, and `poll_interval_seconds`.
+3. Agent polls `GET /config` with `If-None-Match`.
+4. If config changes, agent pushes config to worker via `POST /config`.
+5. User calls worker `GET /hit`; worker requests configured URL and returns raw body.
 
+## Prerequisites
+- Go `1.22.x`
+- GNU Make
+- Docker + Docker Compose (optional)
+
+Install `make` (Windows/macOS):
+
+macOS:
+```bash
+brew install make
+```
+
+Windows (Chocolatey):
+```powershell
+choco install make
+```
+
+## Quick Start (Local)
+### 1) Prepare env files
+Create:
+- `controller/.env` from `controller/.env.example`
+- `agent/.env` from `agent/.env.example`
+- `worker/.env` from `worker/.env.example`
+
+Required key alignment:
+- `controller.AGENT_API_KEY == agent.CONTROLLER_API_KEY`
+- `worker.AGENT_API_KEY == agent.WORKER_API_KEY`
+
+### 2) Build binaries
+```bash
+cd controller && go build ./cmd/main.go
+cd ../agent && go build ./cmd/main.go
+cd ../worker && go build ./cmd/main.go
+```
+
+### 3) Run services (3 terminals)
+```bash
+cd controller && make run
+cd agent && make run
+cd worker && make run
+```
+
+### 4) Run tests
+```bash
+cd controller && make test
+cd ../agent && make test
+cd ../worker && make test
+```
+
+## Make Commands
+### Root level
 ```bash
 make docker                # up agent + worker
 make docker-down           # down agent + worker
@@ -48,82 +83,68 @@ make docker-all            # up all services
 make docker-all-down       # down all services
 ```
 
-## Compile and Setup (Local)
-
-### Prerequisites
-
-- Go `1.22.x`
-- GNU Make
-- Docker + Docker Compose (optional, for containerized run)
-
-### 1) Prepare Environment Files
-
-Create env files from examples:
-
-- `controller/.env` from `controller/.env.example`
-- `agent/.env` from `agent/.env.example`
-- `worker/.env` from `worker/.env.example`
-
-Ensure shared secrets are aligned:
-
-- `controller.AGENT_API_KEY == agent.CONTROLLER_API_KEY`
-- `worker.AGENT_API_KEY == agent.WORKER_API_KEY`
-
-### 2) Compile
-
+### Per-service utility commands
 ```bash
-cd controller && go build ./cmd/main.go
-cd ../agent && go build ./cmd/main.go
-cd ../worker && go build ./cmd/main.go
+cd controller && make mocks && make swagger && make test && make coverage
+cd agent && make mocks && make swagger && make test && make coverage
+cd worker && make mocks && make swagger && make test && make coverage
 ```
 
-### 3) Run (without Docker)
-
-Use separate terminals:
-
-```bash
-cd controller && make run
-cd agent && make run
-cd worker && make run
-```
-
-### 4) Run Tests
-
-```bash
-cd controller && make test
-cd ../agent && make test
-cd ../worker && make test
-```
-
-## Docker Compose Layout
-
+## Docker Layout
 - Controller compose: `controller/docker-compose.yml`
 - Agent + Worker compose: `docker-compose.agent-worker.yml`
 
-## Deployment Details (Public Access)
+## CI/CD (GitHub Actions -> Render)
+Tag-based deploy per service:
+- `controller/v*.*.*` -> controller deploy
+- `agent/v*.*.*` -> agent deploy
+- `worker/v*.*.*` -> worker deploy
 
-Fill this section with your real deployed URLs before submission:
+Workflow files:
+- `.github/workflows/deploy-controller.yml`
+- `.github/workflows/deploy-agent.yml`
+- `.github/workflows/deploy-worker.yml`
 
-- Controller public URL: `<https://...>`
-- Agent public URL: `<https://...>`
-- Worker public URL: `<https://...>`
+Required GitHub secrets:
+- `RENDER_DEPLOY_HOOK_CONTROLLER`
+- `RENDER_DEPLOY_HOOK_AGENT`
+- `RENDER_DEPLOY_HOOK_WORKER`
 
-Example endpoint checks:
+Trigger deploy:
+```bash
+git tag controller/v1.0.0
+git push origin controller/v1.0.0
 
-- `POST <controller-url>/register`
-- `GET <controller-url>/config`
-- `POST <worker-url>/config`
-- `GET <worker-url>/hit`
-- `GET <agent-url>/state`
-- `GET <worker-url>/state`
+git tag agent/v1.0.0
+git push origin agent/v1.0.0
 
-## Notes
+git tag worker/v1.0.0
+git push origin worker/v1.0.0
+```
 
-- Controller uses PostgreSQL (`DATABASE_URL`) for persistent configuration storage.
-- Keep API keys synchronized:
-  - `controller.AGENT_API_KEY == agent.CONTROLLER_API_KEY`
-  - `worker.AGENT_API_KEY == agent.WORKER_API_KEY`
-- If using Render free tier for demo/testing, SQLite persistence is not guaranteed (no persistent disk on free instances).
-  Re-seed configuration (`POST /config`) after service restart/redeploy before running end-to-end checks.
+CI/CD notes:
+- Disable Render auto-deploy-on-commit for strict tag-only deployment.
+- Use repository root as Render build context for `agent` and `worker` (both depend on `shared/`).
 
+## Public Deployment
+- Controller: `https://controller-8hwn.onrender.com`
+- Agent: `https://agent-awcy.onrender.com`
+- Worker: `https://worker-4ldb.onrender.com`
 
+Swagger:
+- Controller: `https://controller-8hwn.onrender.com/swagger/index.html`
+- Agent: `https://agent-awcy.onrender.com/swagger/index.html`
+- Worker: `https://worker-4ldb.onrender.com/swagger/index.html`
+
+## Verification Checklist (Public URLs)
+- `POST https://controller-8hwn.onrender.com/register`
+- `GET https://controller-8hwn.onrender.com/config`
+- `POST https://worker-4ldb.onrender.com/config`
+- `GET https://worker-4ldb.onrender.com/hit`
+- `GET https://agent-awcy.onrender.com/state`
+- `GET https://worker-4ldb.onrender.com/state`
+
+## Important Notes
+- Controller persistence is PostgreSQL (`DATABASE_URL`).
+- Agent stores local runtime state in file; worker stores active config in memory.
+- On Render free tier, instances may sleep/restart; runtime state can reset, but controller data remains in PostgreSQL.

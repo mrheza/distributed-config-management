@@ -24,6 +24,7 @@ type agentService struct {
 	defaultPollSecs  int
 	maxBackoffSecs   int
 	backoffJitterPct int
+	rng              *rand.Rand
 	currentState     *model.State
 }
 
@@ -44,8 +45,6 @@ func NewAgentService(
 	maxBackoffSecs int,
 	backoffJitterPct int,
 ) AgentService {
-	rand.Seed(time.Now().UnixNano())
-
 	return &agentService{
 		controller:       controller,
 		worker:           worker,
@@ -54,6 +53,7 @@ func NewAgentService(
 		defaultPollSecs:  defaultPollSecs,
 		maxBackoffSecs:   maxBackoffSecs,
 		backoffJitterPct: backoffJitterPct,
+		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
 		currentState: &model.State{
 			PollURL:             defaultPollURL,
 			PollIntervalSeconds: defaultPollSecs,
@@ -74,58 +74,8 @@ func (s *agentService) Run(ctx context.Context) {
 		s.backoffJitterPct,
 	)
 
-	bootstrapRetryCount := 0
-	lastBootstrapRetryTarget := ""
-	for {
-		err := s.bootstrap(ctx)
-		if err == nil {
-			bootstrapRetryCount = 0
-			lastBootstrapRetryTarget = ""
-			break
-		}
-
-		log.Printf("event=bootstrap_failed err=%q", err)
-
-		var reqErr *reqError
-		if errors.As(err, &reqErr) {
-			target := reqErr.target
-			if target == "" {
-				target = "remote"
-			}
-			if lastBootstrapRetryTarget != "" && lastBootstrapRetryTarget != target {
-				bootstrapRetryCount = 0
-			}
-			lastBootstrapRetryTarget = target
-
-			bootstrapRetryCount++
-			sleep := calculateBackoff(bootstrapRetryCount, s.maxBackoffSecs)
-			sleep = applyJitter(sleep, s.backoffJitterPct)
-			log.Printf(
-				"event=bootstrap_retry_scheduled target=%s retry_count=%d sleep_secs=%.3f",
-				target,
-				bootstrapRetryCount,
-				sleep.Seconds(),
-			)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(sleep):
-			}
-			continue
-		}
-
-		bootstrapRetryCount = 0
-		lastBootstrapRetryTarget = ""
-		interval := s.defaultPollSecs
-		if interval <= 0 {
-			interval = 5
-		}
-		log.Printf("event=bootstrap_local_error_fixed_retry sleep_secs=%d err=%q", interval, err)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Duration(interval) * time.Second):
-		}
+	if !s.runBootstrapLoop(ctx) {
+		return
 	}
 
 	if s.currentState != nil {
@@ -138,13 +88,58 @@ func (s *agentService) Run(ctx context.Context) {
 		)
 	}
 
-	retryCount := 0
-	lastPollRetryTarget := ""
+	s.runPollLoop(ctx)
+}
+
+func (s *agentService) runBootstrapLoop(ctx context.Context) bool {
+	retry := &retryState{}
 	for {
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
+			return false
+		}
+
+		err := s.bootstrap(ctx)
+		if err == nil {
+			retry.reset()
+			return true
+		}
+
+		log.Printf("event=bootstrap_failed err=%q", err)
+
+		var reqErr *reqError
+		if errors.As(err, &reqErr) {
+			target := reqErr.target
+			retryCount := retry.next(target)
+			sleep := s.applyJitter(calculateBackoff(retryCount, s.maxBackoffSecs), s.backoffJitterPct)
+			log.Printf(
+				"event=bootstrap_retry_scheduled target=%s retry_count=%d sleep_secs=%.3f",
+				target,
+				retryCount,
+				sleep.Seconds(),
+			)
+			if !sleepWithContext(ctx, sleep) {
+				return false
+			}
+			continue
+		}
+
+		retry.reset()
+		interval := s.defaultPollSecs
+		if interval <= 0 {
+			interval = 5
+		}
+		log.Printf("event=bootstrap_local_error_fixed_retry sleep_secs=%d err=%q", interval, err)
+		if !sleepWithContext(ctx, time.Duration(interval)*time.Second) {
+			return false
+		}
+	}
+}
+
+func (s *agentService) runPollLoop(ctx context.Context) {
+	retry := &retryState{}
+	for {
+		if err := ctx.Err(); err != nil {
 			return
-		default:
 		}
 
 		err := s.pollOnce(ctx)
@@ -152,17 +147,8 @@ func (s *agentService) Run(ctx context.Context) {
 			var reqErr *reqError
 			if errors.As(err, &reqErr) {
 				target := reqErr.target
-				if target == "" {
-					target = "remote"
-				}
-				if lastPollRetryTarget != "" && lastPollRetryTarget != target {
-					retryCount = 0
-				}
-				lastPollRetryTarget = target
-
-				retryCount++
-				sleep := calculateBackoff(retryCount, s.maxBackoffSecs)
-				sleep = applyJitter(sleep, s.backoffJitterPct)
+				retryCount := retry.next(target)
+				sleep := s.applyJitter(calculateBackoff(retryCount, s.maxBackoffSecs), s.backoffJitterPct)
 				log.Printf(
 					"event=poll_retry_scheduled target=%s retry_count=%d sleep_secs=%.3f err=%q",
 					target,
@@ -170,72 +156,24 @@ func (s *agentService) Run(ctx context.Context) {
 					sleep.Seconds(),
 					err,
 				)
-				select {
-				case <-ctx.Done():
+				if !sleepWithContext(ctx, sleep) {
 					return
-				case <-time.After(sleep):
 				}
 				continue
 			}
 		}
 
-		retryCount = 0
-		lastPollRetryTarget = ""
+		retry.reset()
 		interval := s.currentState.PollIntervalSeconds
 		if interval <= 0 {
 			interval = s.defaultPollSecs
 		}
 		log.Printf("event=next_poll_scheduled sleep_secs=%d", interval)
 
-		select {
-		case <-ctx.Done():
+		if !sleepWithContext(ctx, time.Duration(interval)*time.Second) {
 			return
-		case <-time.After(time.Duration(interval) * time.Second):
 		}
 	}
-}
-func calculateBackoff(retryCount, maxBackoffSecs int) time.Duration {
-	if retryCount < 1 {
-		retryCount = 1
-	}
-
-	maxBackoff := time.Duration(maxBackoffSecs) * time.Second
-	if maxBackoff <= 0 {
-		maxBackoff = time.Second
-	}
-
-	backoff := time.Second
-	for i := 1; i < retryCount; i++ {
-		if backoff >= maxBackoff {
-			return maxBackoff
-		}
-		backoff *= 2
-	}
-
-	if backoff > maxBackoff {
-		return maxBackoff
-	}
-	return backoff
-}
-
-func applyJitter(base time.Duration, jitterPercent int) time.Duration {
-	if base <= 0 || jitterPercent <= 0 {
-		return base
-	}
-
-	if jitterPercent > 90 {
-		jitterPercent = 90
-	}
-
-	delta := float64(base) * float64(jitterPercent) / 100.0
-	min := float64(base) - delta
-	max := float64(base) + delta
-	jittered := min + rand.Float64()*(max-min)
-	if jittered < 0 {
-		return 0
-	}
-
-	return time.Duration(jittered)
 }
 
 func (s *agentService) bootstrap(ctx context.Context) error {
@@ -393,4 +331,3 @@ func (s *agentService) pollOnce(ctx context.Context) error {
 
 	return nil
 }
-

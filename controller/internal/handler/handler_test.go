@@ -163,6 +163,40 @@ func TestRegisterAgent_ConfigIntervalZero_Fallback(t *testing.T) {
 	mockConfig.AssertExpectations(t)
 }
 
+// Success - configService returns nil config without error -> fallback default interval
+func TestRegisterAgent_ConfigNil_Fallback(t *testing.T) {
+	mockAgent := new(serviceMocks.AgentService)
+	mockConfig := new(serviceMocks.ConfigService)
+
+	cfg := &config.Config{PollURL: "/config"}
+
+	mockAgent.
+		On("Register", "").
+		Return("agent-123", nil).
+		Once()
+
+	mockConfig.
+		On("GetLatest").
+		Return((*model.Config)(nil), nil).
+		Once()
+
+	handler := New(cfg, mockConfig, mockAgent)
+	router := setupRouter(handler)
+
+	req := httptest.NewRequest(http.MethodPost, "/register", nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusOK, resp.Code)
+
+	var body map[string]interface{}
+	_ = json.Unmarshal(resp.Body.Bytes(), &body)
+	assert.Equal(t, float64(30), body["poll_interval_seconds"])
+
+	mockAgent.AssertExpectations(t)
+	mockConfig.AssertExpectations(t)
+}
+
 // AgentService error
 func TestRegisterAgent_AgentServiceError(t *testing.T) {
 
@@ -731,4 +765,19 @@ func TestCreateConfig_GetLatestError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.Code)
 
 	mockConfigService.AssertExpectations(t)
+}
+
+func TestIfNoneMatchContains(t *testing.T) {
+	assert.False(t, ifNoneMatchContains("", `"1"`))
+	assert.False(t, ifNoneMatchContains(`"1"`, ""))
+	assert.False(t, ifNoneMatchContains(`"2"`, `"1"`))
+	assert.True(t, ifNoneMatchContains(`W/"1"`, `"1"`))
+	assert.True(t, ifNoneMatchContains(`"2", "1"`, `"1"`))
+}
+
+func TestNormalizeETag(t *testing.T) {
+	assert.Equal(t, "1", normalizeETag(`"1"`))
+	assert.Equal(t, "1", normalizeETag(`W/"1"`))
+	assert.Equal(t, "1", normalizeETag(`w/"1"`))
+	assert.Equal(t, "1", normalizeETag(`  "1"  `))
 }

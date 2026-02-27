@@ -13,6 +13,11 @@ type Client struct {
 	http *http.Client
 }
 
+type ResponseMeta struct {
+	StatusCode int
+	Header     http.Header
+}
+
 func New(timeoutSeconds int) *Client {
 	return &Client{
 		http: &http.Client{
@@ -21,7 +26,7 @@ func New(timeoutSeconds int) *Client {
 	}
 }
 
-func (c *Client) DoJSON(ctx context.Context, method, url string, headers map[string]string, body interface{}, out interface{}) (*http.Response, error) {
+func (c *Client) DoJSON(ctx context.Context, method, url string, headers map[string]string, body interface{}, out interface{}) (*ResponseMeta, error) {
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -54,9 +59,25 @@ func (c *Client) DoJSON(ctx context.Context, method, url string, headers map[str
 	if out != nil {
 		dec := json.NewDecoder(resp.Body)
 		if err := dec.Decode(out); err != nil && err != io.EOF {
-			return resp, err
+			return &ResponseMeta{
+				StatusCode: resp.StatusCode,
+				Header:     cloneHeader(resp.Header),
+			}, err
 		}
 	}
 
-	return resp, nil
+	return &ResponseMeta{
+		StatusCode: resp.StatusCode,
+		Header:     cloneHeader(resp.Header),
+	}, nil
+}
+
+func cloneHeader(h http.Header) http.Header {
+	out := make(http.Header, len(h))
+	for k, v := range h {
+		cp := make([]string, len(v))
+		copy(cp, v)
+		out[k] = cp
+	}
+	return out
 }

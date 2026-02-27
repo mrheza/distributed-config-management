@@ -30,6 +30,15 @@ import (
 // @name X-API-Key
 func main() {
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf(
+		"event=worker_config_loaded port=%s gin_mode=%s timeout_secs=%d",
+		cfg.Port,
+		cfg.GinMode,
+		cfg.RequestTimeoutSeconds,
+	)
 	gin.SetMode(cfg.GinMode)
 
 	repo := repository.NewMemoryConfigRepository()

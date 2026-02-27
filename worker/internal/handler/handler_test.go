@@ -170,3 +170,17 @@ func TestGetState_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, resp.Code)
 }
+
+func TestGetState_InternalError(t *testing.T) {
+	mockSvc := new(serviceMocks.WorkerService)
+	h := New(mockSvc)
+	r := setupRouter(h)
+
+	mockSvc.On("GetCurrentConfig").Return((*model.Config)(nil), errors.New("db down")).Once()
+
+	req := httptest.NewRequest(http.MethodGet, "/state", nil)
+	resp := httptest.NewRecorder()
+	r.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusInternalServerError, resp.Code)
+}

@@ -13,7 +13,7 @@ type AgentService interface {
 type agentService struct{ repo repository.AgentRepository }
 
 func NewAgentService(r repository.AgentRepository) AgentService {
-	return &agentService{r}
+	return &agentService{repo: r}
 }
 
 func (s *agentService) Register(existingID string) (string, error) {

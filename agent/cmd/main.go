@@ -28,6 +28,21 @@ import (
 // @BasePath /
 func main() {
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf(
+		"event=agent_config_loaded port=%s gin_mode=%s controller_base_url=%s worker_base_url=%s poll_url=%s poll_interval_secs=%d max_backoff_secs=%d jitter_pct=%d timeout_secs=%d",
+		cfg.Port,
+		cfg.GinMode,
+		cfg.ControllerBaseURL,
+		cfg.WorkerBaseURL,
+		cfg.PollURL,
+		cfg.PollIntervalSeconds,
+		cfg.MaxBackoffSeconds,
+		cfg.BackoffJitterPercent,
+		cfg.RequestTimeoutSeconds,
+	)
 	gin.SetMode(cfg.GinMode)
 
 	httpClient := httpclient.New(cfg.RequestTimeoutSeconds)

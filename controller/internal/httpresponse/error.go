@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// NOTE: Keep local response schema types in this package so Swag can resolve
+// service-local models reliably.
 type ErrorDetail struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
@@ -46,6 +48,10 @@ func Unauthorized(c *gin.Context) {
 
 func NotFound(c *gin.Context, message string) {
 	sharedhttpresponse.NotFound(c, message)
+}
+
+func BadRequest(c *gin.Context, message string) {
+	sharedhttpresponse.BadRequest(c, message)
 }
 
 func ValidationError(c *gin.Context, err error, requestStruct interface{}) {

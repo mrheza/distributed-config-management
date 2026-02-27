@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// NOTE: Keep local response schema types in this package so Swag can resolve
+// service-local models reliably.
 type ErrorDetail struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`

@@ -26,6 +26,16 @@ import (
 func main() {
 
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf(
+		"event=controller_config_loaded port=%s gin_mode=%s poll_url=%s database_url_set=%t",
+		cfg.Port,
+		cfg.GinMode,
+		cfg.PollURL,
+		cfg.DatabaseURL != "",
+	)
 	gin.SetMode(cfg.GinMode)
 
 	database, err := db.New(cfg.DatabaseURL)
